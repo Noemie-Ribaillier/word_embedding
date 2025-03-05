@@ -1,9 +1,8 @@
-
 ##########################################################################################################
 #####                                                                                                #####
 #####                                   OPERATIONS ON WORD VECTORS                                   #####
 #####                                     Created on 2025-02-26                                      #####
-#####                                     Updated on 2025-02-27                                      #####
+#####                                     Updated on 2025-03-05                                      #####
 #####                                                                                                #####
 ##########################################################################################################
 
@@ -20,16 +19,29 @@ from tqdm import tqdm
 
 # Set up the right directory
 import os
-os.chdir('C:/Users/Admin/Documents/Python Projects/_operations')
+os.chdir('C:/Users/Admin/Documents/Python Projects/word_embedding')
 
 
 ##########################################################################################################
 #####                                     LOAD THE WORD VECTORS                                      #####
 ##########################################################################################################
 
-# Create the function to read the Glove word embedding
-def read_glove_vecs(glove_file):
+# Create the function to read the GloVe word embedding
+def read_glove_embedding(glove_file):
+    """
+    Read the GloVe word embedding
+        
+    Arguments:
+        glove_file -- file with GLoVe data
+
+    Returns:
+        words -- set containing all words from GloVe word embedding
+        word_to_vec_map -- dictionnary mapping each word with its word vector
+    """ 
+
     with open(glove_file, 'r', encoding="utf8") as f:
+
+        # Create the empty set for words and the empty dictionnary word_to_vec_map (will take the word as key and the word embedding as value)
         words = set()
         word_to_vec_map = {}
         
@@ -42,8 +54,8 @@ def read_glove_vecs(glove_file):
             
     return words, word_to_vec_map
 
-# We load the pre-trained word embeddings (here GloVe embeddings which is 50-dimensional GloVe vectors to represent words)  
-words, word_to_vec_map = read_glove_vecs('data/glove.6B.50d.txt')
+# Load the pre-trained word embeddings (here GloVe embeddings which is 50-dimensional GloVe vectors to represent each word from words set)  
+words, word_to_vec_map = read_glove_embedding('data/glove.6B.50d.txt')
 
 # words: set of words in the vocabulary (400k words)
 type(words) ; len(words) ; list(words)[0]
@@ -53,19 +65,19 @@ type(words) ; len(words) ; list(words)[0]
 type(word_to_vec_map) ; len(word_to_vec_map) ; word_to_vec_map[list(words)[0]]
 
 # For example, with a quick look at the word embedding of man vs woman vs apple, we see that the numbers seem to be positive/negative the same way between woman and man while different with apple
-word_to_vec_map['man']
-word_to_vec_map['woman']
-word_to_vec_map['apple']
+np.round(word_to_vec_map['man'],2)
+np.round(word_to_vec_map['woman'],2)
+np.round(word_to_vec_map['apple'],2)
 
 
 ##########################################################################################################
 #####                                       COSINE SIMILARITY                                        #####
 ##########################################################################################################
 
-# Implement cosine_similarity function to evaluate the similarity between 2 word vectors
+# Create the function cosine_similarity to evaluate the similarity between 2 word vectors
 def cosine_similarity(u, v):
     """
-    Cosine similarity reflects the degree of similarity between 2 vectors (words embedding)
+    Cosine similarity shows the degree of similarity between 2 vectors (words embedding)
         
     Arguments:
         u -- a word vector of shape (n,)          
@@ -75,7 +87,7 @@ def cosine_similarity(u, v):
         cosine_similarity -- the cosine similarity between u and v
     """
     
-    # Special case
+    # Special case (if all values for u and v are equal element-wise)
     if np.all(u == v):
         return 1
 
@@ -88,7 +100,7 @@ def cosine_similarity(u, v):
     # Compute the L2 norm of v
     norm_v = np.linalg.norm(v)
     
-    # Avoid division by 0
+    # Avoid division by 0 (atol parameter being the absolute tolerance parameter)
     if np.isclose(norm_u * norm_v, 0, atol=1e-32):
         return 0
     
@@ -114,7 +126,8 @@ print("cosine_similarity(ball, crocodile) = ",cosine_similarity(ball, crocodile)
 print("cosine_similarity(france - paris, rome - italy) = ",cosine_similarity(france - paris, rome - italy))
 # We notice that cosine similarity between father and mother is higher than the cosine similarity between ball and crocodile
 # This is because father and mother are rather more used in the same context, than ball and crocodile
-# Cosine similarity between France and Paris vs Rome vs Italy is negative because they are similar but opposite
+# Cosine similarity between France and Paris vs Rome and Italy is negative because they are similar but opposite
+
 
 ##########################################################################################################
 #####                                       WORD ANALOGY TASK                                        #####
@@ -130,21 +143,25 @@ def complete_analogy(word_a, word_b, word_c, word_to_vec_map):
     word_a -- a word, string
     word_b -- a word, string
     word_c -- a word, string
-    word_to_vec_map -- dictionary that maps words to their corresponding vectors. 
+    word_to_vec_map -- dictionary that maps words to their corresponding vectors
     
     Returns:
-    best_word --  the word such that v_b - v_a is close to v_best_word - v_c, as measured by cosine similarity
+    best_word --  the word such that e_b - e_a is close to e_best_word - e_c, as measured by cosine similarity with e_ being the word embedding
     """
     
     # Convert words to lowercase
     word_a, word_b, word_c = word_a.lower(), word_b.lower(), word_c.lower()
     
-    # Get the word embeddings e_a, e_b and e_c
+    # Get the word embeddings e_a, e_b and e_c from word_a, word_b and word_c
     e_a, e_b, e_c = word_to_vec_map[word_a], word_to_vec_map[word_b], word_to_vec_map[word_c]
     
-    # Get all the possible words, define a big max_cosine_sim (that we will aim at reducing as much as possible)
+    # Get all the possible words
     words = word_to_vec_map.keys()
-    max_cosine_sim = -100
+
+    # Define a big max_cosine_sim (that we will aim at reducing as much as possible) [cosine similarity goes between -1 and 1]
+    max_cosine_sim = -2
+
+    # Set up the best_word as None for the moment
     best_word = None
     
     # Loop over the whole words vector set
@@ -165,12 +182,13 @@ def complete_analogy(word_a, word_b, word_c, word_to_vec_map):
 
 
 # Get the analogy for the following tasks
-triads_to_try = [('italy', 'italian', 'spain'), ('india', 'delhi', 'japan'), ('man', 'woman', 'boy'), 
-                 ('small', 'smaller', 'large'), ('carrot', 'orange', 'cucumber')] 
-for triad in triads_to_try:
-    print ('{} -> {} :: {} -> {}'.format(*triad, complete_analogy(*triad, word_to_vec_map)))
-# * character is used to unpack the tuple
-# The word analogy doesn't get that if carrot is orange, cucumber should be green
+tasks = [('italy', 'italian', 'spain'), ('india', 'delhi', 'japan'), ('man', 'woman', 'boy'), 
+         ('small', 'smaller', 'large'), ('carrot', 'orange', 'cucumber')] 
+for task in tasks:
+    print ('{} -> {} :: {} -> {}'.format(*task, complete_analogy(*task, word_to_vec_map)))
+# * character: used to unpack the tuple
+# The word analogy understands that italian to italy is the same than spanish to spain
+# The word analogy doesn't understand that if carrot is orange, cucumber should be green
 
 
 ##########################################################################################################
@@ -179,22 +197,23 @@ for triad in triads_to_try:
 
 # Examine the gender biases that can be reflected in a word embedding, and explore algorithms for reducing the bias.
 
-# Get the gender word embedding (gender vector)
-g = word_to_vec_map['woman'] - word_to_vec_map['man']
-# g1 = word_to_vec_map['mother'] - word_to_vec_map['father']
-# g2 = word_to_vec_map['girl'] - word_to_vec_map['boy']
-# g3 = word_to_vec_map['woman'] - word_to_vec_map['man']
-# g = np.mean(np.array([g1,g2,g3]),axis=0)
+# Get the gender word embedding (gender vector, by removing "male" words to "female" words)
+# g = word_to_vec_map['woman'] - word_to_vec_map['man']
+g1 = word_to_vec_map['mother'] - word_to_vec_map['father']
+g2 = word_to_vec_map['girl'] - word_to_vec_map['boy']
+g3 = word_to_vec_map['woman'] - word_to_vec_map['man']
+g = np.mean(np.array([g1,g2,g3]),axis=0)
 print(g)
+print(g.shape)
 
 # Compute now the cosine similarity between the g vector (gender) and other words
 
 # Get the smilarity between each name (girls and boys) and the gender vector
 name_list = ['john', 'marie', 'sophie', 'ronaldo', 'priya', 'rahul', 'danielle', 'reza', 'katy', 'yasmin']
-for w in name_list:
-    print (w, cosine_similarity(word_to_vec_map[w], g))
+for n in name_list:
+    print (n, cosine_similarity(word_to_vec_map[n], g))
 # We see that girl names have a positive cosine similarity while boy names have negative cosine similarity
- 
+
 # Try with other words (that should be gender neutral but that are victim of stereotypes in our society)
 word_list = ['lipstick', 'guns', 'science', 'arts', 'literature', 'warrior','doctor', 'tree', 'receptionist', 
              'technology',  'fashion', 'teacher', 'engineer', 'pilot', 'computer', 'singer']
@@ -203,9 +222,9 @@ for w in word_list:
 # We see that some words (supposed to be neutral) have a positive cosine similarity with gender (for example receptionnist)
 # so are closer in value to female first names while other words (for example warrior) have a negative cosine similarity
 # (meaning that warrior is closer in value to male first names)
-# This shows the stereotypes from our society. Goal of this is to solve the gender and other stereotypes so that our models is more neutral
+# This shows the stereotypes from our society. Goal of "debiasing word vectors" is to solve the gender and other stereotypes so that our models is more neutral
 
-# Try with other words (that sare not gender neutral)
+# Try with other words (that are not gender neutral)
 word_list = ['actor', 'actress', 'grandmother', 'grandfather', 'policeman', 'policewoman', 'waiter', 'waitress']
 for w in word_list:
     print (w, cosine_similarity(word_to_vec_map[w], g))
@@ -221,17 +240,29 @@ for w in word_list:
 # * the remaining 49 dimensions (orthogonal to g) [called g_perp]
 
 # The neutralization step takes a vector such as e_receptionist and zeros out the component in the direction
-#  of g, giving us e_receptionist_debiased. 
+#  of g, giving us e_receptionist_debiased
 
-# The theory assumes all word vectors to have L2 norm as 1
+# The theory assumes all word vectors to have L2 norm as 1 (it simplifies the mathematical process, it ensures that the focus remains on adjusting the direction [not the length] of the vectors, and leads to more standardized and comparable results)
+# word is the key of the dictionnary and the value embedding is replaced by the embedding divided by its L2 norm
 word_to_vec_map_unit_vectors = {
-    # it divides each component of the word vector by its L2 norm (the resulting vector will point in the same direction as the original vector but will have a length of 1)
+    # Divide each component of the word vector by its L2 norm (the resulting vector will point in the same direction as the original vector but will have a length of 1)
     word: embedding / np.linalg.norm(embedding)
     for word, embedding in word_to_vec_map.items()
 }
-g_unit = word_to_vec_map_unit_vectors['woman'] - word_to_vec_map_unit_vectors['man']
 
-# Create neutralize function to remove the bias of words such as "receptionist" or "scientist" 
+# Check that word vectors have length 1 (some examples)
+print(np.linalg.norm(word_to_vec_map_unit_vectors['mother']))
+print(np.linalg.norm(word_to_vec_map_unit_vectors['father']))
+print(np.linalg.norm(word_to_vec_map_unit_vectors['apple']))
+
+# Get the new gender vector (made with word vectors of length 1)
+g1_unit = word_to_vec_map_unit_vectors['mother'] - word_to_vec_map_unit_vectors['father']
+g2_unit = word_to_vec_map_unit_vectors['girl'] - word_to_vec_map_unit_vectors['boy']
+g3_unit = word_to_vec_map_unit_vectors['woman'] - word_to_vec_map_unit_vectors['man']
+g_unit = np.mean(np.array([g1_unit,g2_unit,g3_unit]),axis=0)
+print(g_unit)
+
+# Create neutralize function to remove the gender bias of gender neutral words (such as "receptionist" or "warrior")
 def neutralize(word, g, word_to_vec_map):
     """
     Removes the bias of "word" by projecting it on the space orthogonal to the bias axis. 
@@ -249,11 +280,11 @@ def neutralize(word, g, word_to_vec_map):
     # Select word vector representation of "word"
     e = word_to_vec_map[word]
     
-    # Compute e_biascomponent using the formula given above
+    # Compute e_biascomponent
     e_biascomponent = (np.dot(e,g)/(np.linalg.norm(g))**2)*g
  
     # Neutralize e by subtracting e_biascomponent from it (e_debiased should be equal to its orthogonal projection)
-    e_debiased = e-e_biascomponent
+    e_debiased = e - e_biascomponent
     
     return e_debiased
 
@@ -269,15 +300,14 @@ print("cosine similarity between " + word + " and g_unit, after neutralizing: ",
 #####                        EQUALIZATION ALGORITHM FOR GENDER-SPECIFIC WORDS                        #####
 ##########################################################################################################
 
-# Debiasing can also be applied to word pairs such as "actress" and "actor".
-# Equalization is applied to pairs of words that you might want to have differ only through the gender property.
+# Equalization is applied to pairs of words that you might want to have differ only through the gender property (for example actor and actress).
 # To make sure that a particular pair of words are equidistant from the 49-dimensional g_perp. 
-# The equalization step also ensures that the two equalized steps are now the same distance from any other work that has been neutralized (for example e_receptionist_debiased). 
+# The equalization step also ensures that the two equalized vectors are now the same distance from any other word that has been neutralized (for example e_receptionist_debiased). 
 
-# Create the equalize function
+# Create the equalize function to debias (gender for example specific) words by following the equalize method 
 def equalize(pair, bias_axis, word_to_vec_map):
     """
-    Debias gender specific words by following the equalize method
+    Debias gender (for example) specific words by following the equalize method
     
     Arguments:
     pair -- pair of strings of gender specific words to debias, e.g. ("actress", "actor") 
@@ -300,31 +330,31 @@ def equalize(pair, bias_axis, word_to_vec_map):
     mu_B = (np.dot(mu,bias_axis)/(np.linalg.norm(bias_axis)**2))*bias_axis
     mu_orth = mu - mu_B
     
-    # Step 4: Use equations (7) and (8) to compute e_w1B and e_w2B
+    # Step 4: Compute e_w1B and e_w2B
     e_w1B = (np.dot(e_w1,bias_axis)/(np.linalg.norm(bias_axis)**2))*bias_axis
     e_w2B = (np.dot(e_w2,bias_axis)/(np.linalg.norm(bias_axis)**2))*bias_axis
 
-    # Step 5: Adjust the bias part of e_w1B and e_w2B using the formulas (9) and (10) given above
+    # Step 5: Adjust the bias part of e_w1B and e_w2B
     corrected_e_w1B = np.sqrt(1-np.linalg.norm(mu_orth)**2)*(e_w1B-mu_B)/(np.linalg.norm(e_w1B-mu_B))
     corrected_e_w2B = np.sqrt(1-np.linalg.norm(mu_orth)**2)*(e_w2B-mu_B)/(np.linalg.norm(e_w2B-mu_B))
 
     # Step 6: Debias by equalizing e1 and e2 to the sum of their corrected projections
     e1 = corrected_e_w1B + mu_orth
     e2 = corrected_e_w2B + mu_orth
-                                                                    
+
     return e1, e2
 
 
 # Equalize the word embedding of man and woman
 print("cosine_similarity between man and gender = ", cosine_similarity(word_to_vec_map["man"], g))
 print("cosine_similarity between woman and gender = ", cosine_similarity(word_to_vec_map["woman"], g))
-e1, e2 = equalize(("man", "woman"), g_unit, word_to_vec_map_unit_vectors)
-print("cosine_similarity between man equalized e1 and gender = ", cosine_similarity(e1, g_unit))
-print("cosine_similarity between woman equalized e2 and gender = ", cosine_similarity(e2, g_unit))
+e_man, e_woman = equalize(("man", "woman"), g_unit, word_to_vec_map_unit_vectors)
+print("cosine_similarity between man equalized e1 and gender = ", cosine_similarity(e_man, g_unit))
+print("cosine_similarity between woman equalized e2 and gender = ", cosine_similarity(e_woman, g_unit))
 
 # Equalize the word embedding of actor and actress
 print("cosine_similarity between actor and gender = ", cosine_similarity(word_to_vec_map["actor"], g))
 print("cosine_similarity between actress and gender = ", cosine_similarity(word_to_vec_map["actress"], g))
-e1, e2 = equalize(("actor", "actress"), g_unit, word_to_vec_map_unit_vectors)
-print("cosine_similarity between actor equalized e1 and gender = ", cosine_similarity(e1, g_unit))
-print("cosine_similarity between actress equalized e2 and gender = ", cosine_similarity(e2, g_unit))
+e_actor, e_actress = equalize(("actor", "actress"), g_unit, word_to_vec_map_unit_vectors)
+print("cosine_similarity between actor equalized e1 and gender = ", cosine_similarity(e_actor, g_unit))
+print("cosine_similarity between actress equalized e2 and gender = ", cosine_similarity(e_actress, g_unit))
